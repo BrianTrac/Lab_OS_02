@@ -91,3 +91,17 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_trace(void) {
+    int mask;
+    argint(0, &mask);  // Lấy giá trị từ người dùng
+
+    if (mask < 0) {  // Kiểm tra nếu giá trị không hợp lệ
+        return -1;
+    }
+
+    struct proc *p = myproc();
+    p->trace_mask = mask;  // Gán giá trị mask cho tiến trình hiện tại
+    return 0;
+}
+
