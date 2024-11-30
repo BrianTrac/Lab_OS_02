@@ -105,3 +105,14 @@ uint64 sys_trace(void) {
     return 0;
 }
 
+uint64
+sys_sysinfo(void)
+{
+  uint64 info;  
+
+  argaddr(0, &info);
+
+  return systeminfo(info);
+}
+
+
