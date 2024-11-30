@@ -1,0 +1,80 @@
+====================================================================================
+1. Looking at the backtrace output, which function called syscall?
+
+"""
+    (gdb) backtrace
+    #0  syscall () at kernel/syscall.c:135
+    #1  0x0000000080001e76 in usertrap () at kernel/trap.c:67
+    #2  0x0505050505050505 in ?? ()
+"""
+
+The backtrace indicates that the syscall is called by usertrap() in kernel/trap.c, line 67.
+
+====================================================================================
+2. What is the value of p->trapframe->a7 and what does that value represent? 
+
+"""
+    (gdb) p p->trapframe->a7
+    $1 = 7
+"""
+
+The value of "p->trapframe->a7" is 7, which represents the system call number of 'SYS_exec' in syscall.h.
+
+====================================================================================
+3. What was the previous mode that the CPU was in?
+
+"""
+    (gdb) print /x $sstatus
+    $1 = 0x200000022
+"""
+
+$1 = 0x200000022. The eighth bit in $sstatus is 0. As defined in the book, the previous mode is user mode.
+
+====================================================================================
+4. Write down the assembly instruction the kernel is panicing at. Which register corresponds to the variable num?
+
+"""
+    hart 2 starting
+    hart 1 starting
+    scause 0x000000000000000d
+    sepc=0x0000000080002156 stval=0x0000000000000000
+    panic: kerneltrap
+"""
+
+Here, spec show the address where the kernel is panicing at. I search in kernel/kernel.asm for the address 0x80001c92 (32-bit instead of original 64 bit) and get this
+
+"""
+    num = *(int*) 0;
+        80002156:	00002683          	lw	a3,0(zero) # 0 <_entry-0x80000000>
+"""
+
+Therefore "lw	a3,0(zero)" is the assembly instruction where the kernel is panicing at.
+This assembly code means: load a word (2 bytes) of data starting from address 0 in the memory into the register a3
+So a3 corresponds to the variable num.
+
+====================================================================================
+5. Why does the kernel crash? Hint: look at figure 3-3 in the text; is address 0 mapped in the kernel address space? Is that confirmed by the value in scause above? (See description of scause in RISC-V privileged instructions)
+
+The kernel crashed because it attempted to load data from an unused memory address 0. Address 0 is not mapped into kernel space (kernel space starts from 0x80000000 in virtual memory). 
+
+To confirm, let's check the `scause` register, which indicates the reason for the kernel panic. As shown above, its value is 0x000000000000000d (13 in decimal).
+According to the exception codes listed in the RISC-V Privileged Architectures V1.10 (page 35), 13 represents a Load page fault. 
+
+This means that there was an error when loading data from memory address 0 into a register.
+====================================================================================
+
+6. What is the name of the binary that was running when the kernel paniced? What is its process id (pid)?
+
+"""
+        (gdb) p p->name
+        $1 = "initcode\000\000\000\000\000\000\000"
+        (gdb) p *p
+        $3 = {lock = {locked = 0, name = 0x80008178 "proc", cpu = 0x0}, state = RUNNING, chan = 0x0, killed = 0, xstate = 0,
+        pid = 1, parent = 0x0, kstack = 274877894656, sz = 4096, pagetable = 0x87f73000, trapframe = 0x87f74000, context = {
+            ra = 2147488870, sp = 274877898368, s0 = 274877898416, s1 = 2147519792, s2 = 2147518720, s3 = 1, s4 = 0, s5 = 3,
+            s6 = 2147588560, s7 = 8, s8 = 2147588856, s9 = 4, s10 = 1, s11 = 0}, ofile = {0x0 <repeats 16 times>},
+        cwd = 0x80016e40 <itable+24>, name = "initcode\000\000\000\000\000\000\000"}
+"""
+
+Name of binary is "initcode\000\000\000\000\000\000\000". It's process id is 1.
+====================================================================================
